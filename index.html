@@ -11,7 +11,6 @@
 </head>
 <body>
   <div id="app">
-    <!-- Top Bar -->
     <header id="top-bar">
       <div class="logo">
         <span class="logo-icon">🏢</span>
@@ -39,7 +38,6 @@
     </header>
 
     <div id="main-layout">
-      <!-- Left Sidebar: Agents & Tasks -->
       <aside id="sidebar-left">
         <section class="panel">
           <h2 class="panel-title">Agents <span id="agent-list-count" class="badge">4</span></h2>
@@ -54,7 +52,6 @@
         </section>
       </aside>
 
-      <!-- Center: Office Canvas -->
       <main id="office-area">
         <canvas id="office-canvas" width="1100" height="700"></canvas>
         <div id="speech-layer"></div>
@@ -67,7 +64,6 @@
         </div>
       </main>
 
-      <!-- Right Sidebar: Details & Log -->
       <aside id="sidebar-right">
         <section class="panel" id="selected-panel">
           <h2 class="panel-title">Selection</h2>
@@ -88,16 +84,13 @@
       </aside>
     </div>
 
-    <!-- Bottom Status -->
     <footer id="status-bar">
       <div id="status-message">Welcome to Agent Office. Your chaotic AI team is ready.</div>
       <div id="fps-counter">60 FPS</div>
     </footer>
   </div>
 
-  <!-- Modals -->
   <div id="modal-overlay" class="hidden">
-    <!-- Task Assignment Modal -->
     <div id="modal-task" class="modal hidden">
       <div class="modal-header">
         <h2>Assign Task</h2>
@@ -105,30 +98,61 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Task Type</label>
-          <select id="task-preset">
-            <option value="custom">Freeform / Custom Prompt</option>
-            <option value="minigame">Build a Playable Mini-Game</option>
-            <option value="landing">Design a Landing Page</option>
-            <option value="tool">Create a Utility Tool</option>
-            <option value="story">Write Interactive Story</option>
-            <option value="dashboard">Build a Dashboard Widget</option>
-            <option value="gameart">Game Art + Lore Package</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Prompt / Description</label>
-          <textarea id="task-prompt" rows="4" placeholder="Describe what you want the agent(s) to create..."></textarea>
-        </div>
-        <div class="form-group">
-          <label>Assign Agents (select 1 or more for collaboration)</label>
+          <label>Assigned Agent(s)</label>
           <div id="task-agent-select" class="agent-select-grid"></div>
+          <p class="form-hint">Click agents to toggle. Select 2+ and enable Collaborative mode.</p>
+        </div>
+        <div class="form-group">
+          <label>Task Presets <span class="muted">(click to fill)</span></label>
+          <div id="task-preset-cards" class="preset-cards">
+            <button type="button" class="preset-card" data-preset="minigame">
+              <span class="preset-title">🎮 Playable Mini-Game</span>
+              <span class="preset-desc">Asteroids / dodge / collectibles</span>
+            </button>
+            <button type="button" class="preset-card" data-preset="landing">
+              <span class="preset-title">🚀 Landing Page</span>
+              <span class="preset-desc">Hero + features + CTA</span>
+            </button>
+            <button type="button" class="preset-card" data-preset="tool">
+              <span class="preset-title">🛠️ Utility Tool</span>
+              <span class="preset-desc">Pomodoro / converter / picker</span>
+            </button>
+            <button type="button" class="preset-card" data-preset="story">
+              <span class="preset-title">📖 Interactive Story</span>
+              <span class="preset-desc">Branching text adventure</span>
+            </button>
+            <button type="button" class="preset-card" data-preset="dashboard">
+              <span class="preset-title">📊 Dashboard Widget</span>
+              <span class="preset-desc">Fake analytics, pretty charts</span>
+            </button>
+            <button type="button" class="preset-card" data-preset="gameart">
+              <span class="preset-title">🎨 Art + Lore Pack</span>
+              <span class="preset-desc">Palette, mood, characters</span>
+            </button>
+            <button type="button" class="preset-card" data-preset="marketing">
+              <span class="preset-title">👟 Marketing Concept</span>
+              <span class="preset-desc">Shoe / product drop strategy</span>
+            </button>
+            <button type="button" class="preset-card" data-preset="custom">
+              <span class="preset-title">✏️ Custom / Freeform</span>
+              <span class="preset-desc">Write your own prompt</span>
+            </button>
+          </div>
+          <input type="hidden" id="task-preset" value="custom">
+        </div>
+        <div class="form-group">
+          <label>Task Title</label>
+          <input type="text" id="task-title" placeholder="Short title for the output archive">
+        </div>
+        <div class="form-group">
+          <label>Prompt / Instructions</label>
+          <textarea id="task-prompt" rows="5" placeholder="Describe what you want the agent(s) to create..."></textarea>
         </div>
         <div class="form-group">
           <label>Collaboration Mode</label>
           <div class="radio-row">
             <label><input type="radio" name="collab-mode" value="solo" checked> Solo (first selected)</label>
-            <label><input type="radio" name="collab-mode" value="collab"> Collaborative</label>
+            <label><input type="radio" name="collab-mode" value="collab"> Collaborative (2+ agents)</label>
           </div>
         </div>
       </div>
@@ -138,7 +162,6 @@
       </div>
     </div>
 
-    <!-- Agent Creator Modal -->
     <div id="modal-creator" class="modal hidden">
       <div class="modal-header">
         <h2>🎨 Character Creator</h2>
@@ -199,7 +222,6 @@
       </div>
     </div>
 
-    <!-- Settings Modal -->
     <div id="modal-settings" class="modal hidden">
       <div class="modal-header">
         <h2>Settings</h2>
@@ -234,7 +256,6 @@
       </div>
     </div>
 
-    <!-- Task Result Modal -->
     <div id="modal-result" class="modal modal-wide hidden">
       <div class="modal-header">
         <h2 id="result-title">Task Complete</h2>
@@ -254,7 +275,6 @@
       </div>
     </div>
 
-    <!-- Hire Existing / Confirm -->
     <div id="modal-confirm" class="modal hidden">
       <div class="modal-header">
         <h2 id="confirm-title">Confirm</h2>
@@ -270,9 +290,7 @@
     </div>
   </div>
 
-  <!-- Toast notifications -->
   <div id="toast-container"></div>
-
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
