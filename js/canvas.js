@@ -45,10 +45,16 @@ export class Office {
       this.agents = saved.map(d => new Agent(d, this));
     } else {
       this.agents = STARTER_AGENTS.map(d => new Agent({ ...d }, this));
-      // Scatter them
+      // Place starters in Dev & Design Pod + Growth Lab
+      const starts = [
+        { x: 140, y: 360 },
+        { x: 270, y: 360 },
+        { x: 580, y: 360 },
+        { x: 720, y: 360 }
+      ];
       this.agents.forEach((a, i) => {
-        a.x = 200 + i * 140;
-        a.y = 280 + (i % 2) * 40;
+        a.x = starts[i]?.x ?? 300 + i * 80;
+        a.y = starts[i]?.y ?? 380;
       });
     }
 
@@ -300,26 +306,61 @@ export class Office {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
 
-    // Floor grid
-    ctx.strokeStyle = 'rgba(34,40,54,0.6)';
+    // Background base
+    ctx.fillStyle = '#0f1219';
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    // Soft grid
+    ctx.strokeStyle = 'rgba(40, 48, 68, 0.45)';
     ctx.lineWidth = 1;
-    for (let x = 0; x < this.width; x += this.cellSize) {
+    for (let x = 0; x <= this.width; x += this.cellSize) {
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, this.height);
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, this.height);
       ctx.stroke();
     }
-    for (let y = 0; y < this.height; y += this.cellSize) {
+    for (let y = 0; y <= this.height; y += this.cellSize) {
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(this.width, y);
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(this.width, y + 0.5);
       ctx.stroke();
     }
 
-    // Soft vignette / walls feel
-    ctx.fillStyle = 'rgba(13,15,20,0.35)';
-    ctx.fillRect(0, 0, this.width, 40);
-    ctx.fillRect(0, this.height - 30, this.width, 30);
+    // === ZONES (inspired by Antigravity version) ===
+    const zones = [
+      { name: 'RECHARGE KITCHEN', x: 40, y: 40, w: 280, h: 160, color: 'rgba(34, 197, 94, 0.08)', border: 'rgba(34, 197, 94, 0.35)', label: '#4ade80' },
+      { name: 'STRATEGY & WHITEBOARD', x: 350, y: 40, w: 320, h: 140, color: 'rgba(59, 130, 246, 0.07)', border: 'rgba(59, 130, 246, 0.35)', label: '#60a5fa' },
+      { name: 'CLOUD NODES', x: 700, y: 40, w: 360, h: 160, color: 'rgba(168, 85, 247, 0.07)', border: 'rgba(168, 85, 247, 0.3)', label: '#c084fc' },
+      { name: 'DEV & DESIGN POD', x: 40, y: 230, w: 420, h: 280, color: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.35)', label: '#a5b4fc' },
+      { name: 'GROWTH & TREND LAB', x: 490, y: 230, w: 340, h: 280, color: 'rgba(236, 72, 153, 0.07)', border: 'rgba(236, 72, 153, 0.3)', label: '#f9a8d4' },
+      { name: 'ZEN LOUNGE', x: 860, y: 230, w: 200, h: 280, color: 'rgba(245, 158, 11, 0.07)', border: 'rgba(245, 158, 11, 0.3)', label: '#fcd34d' }
+    ];
+
+    for (const z of zones) {
+      // Zone fill
+      ctx.fillStyle = z.color;
+      roundRectPath(ctx, z.x, z.y, z.w, z.h, 12);
+      ctx.fill();
+
+      // Zone border
+      ctx.strokeStyle = z.border;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Zone label
+      ctx.font = '600 11px Space Grotesk, system-ui, sans-serif';
+      ctx.fillStyle = z.label;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(z.name, z.x + 12, z.y + 10);
+    }
+
+    // Subtle top/bottom vignette
+    const gradTop = ctx.createLinearGradient(0, 0, 0, 50);
+    gradTop.addColorStop(0, 'rgba(8,10,16,0.6)');
+    gradTop.addColorStop(1, 'rgba(8,10,16,0)');
+    ctx.fillStyle = gradTop;
+    ctx.fillRect(0, 0, this.width, 50);
 
     // Furniture
     this.furniture.draw(ctx);
@@ -328,7 +369,7 @@ export class Office {
     const sorted = [...this.agents].sort((a, b) => a.y - b.y);
     sorted.forEach(a => a.draw(ctx));
 
-    // Speech bubbles (DOM layer is better, but we can also draw simple ones)
+    // Speech bubbles via DOM
     this.updateSpeechBubbles();
   }
 
@@ -336,8 +377,6 @@ export class Office {
     const layer = document.getElementById('speech-layer');
     if (!layer) return;
 
-    // Simple approach: clear and rebuild visible bubbles
-    // For performance we could pool, but N is small
     const existing = new Map();
     layer.querySelectorAll('.speech-bubble').forEach(el => {
       existing.set(el.dataset.agentId, el);
@@ -360,7 +399,6 @@ export class Office {
         layer.appendChild(el);
       }
       el.textContent = a.speech;
-      // Position relative to canvas
       const left = (a.x * scaleX) - 20;
       const top = (a.y * scaleY) - 55;
       el.style.left = `${left}px`;
@@ -377,12 +415,10 @@ export class Office {
         Audio.click();
         return;
       }
-      // Select furniture to delete? or drag
       const hit = this.furniture.items.find(f =>
         dist(x, y, f.x, f.y) < Math.max(f.w, f.h) * 0.5
       );
       if (hit) {
-        // Simple: right-click or shift to remove later; for now select
         this.selectedFurniture = hit;
         toast(`${hit.name} selected — press Delete to remove`, 'info');
       }
@@ -448,4 +484,14 @@ export class Office {
   start() {
     requestAnimationFrame(t => this.loop(t));
   }
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
