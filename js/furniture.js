@@ -119,41 +119,62 @@ export function createFurniture(typeId, x, y) {
 }
 
 export const DEFAULT_FURNITURE = [
-  createFurniture('desk', 180, 180),
-  createFurniture('desk', 320, 180),
-  createFurniture('desk', 460, 180),
-  createFurniture('desk', 180, 320),
-  createFurniture('desk', 320, 320),
-  createFurniture('chair', 180, 220),
-  createFurniture('chair', 320, 220),
-  createFurniture('chair', 460, 220),
-  createFurniture('coffee', 700, 140),
-  createFurniture('whiteboard', 820, 280),
-  createFurniture('plant', 100, 100),
-  createFurniture('plant', 980, 480),
-  createFurniture('arcade', 900, 140),
-  createFurniture('beanbag', 750, 420),
-  createFurniture('neon', 550, 80),
-  createFurniture('server', 1000, 200)
+  // Recharge Kitchen
+  createFurniture('coffee', 120, 120),
+  createFurniture('plant', 220, 90),
+
+  // Strategy & Whiteboard
+  createFurniture('whiteboard', 500, 100),
+  createFurniture('neon', 420, 80),
+
+  // Cloud Nodes
+  createFurniture('server', 780, 110),
+  createFurniture('server', 860, 110),
+  createFurniture('arcade', 980, 120),
+
+  // Dev & Design Pod (main work area)
+  createFurniture('desk', 120, 320),
+  createFurniture('desk', 250, 320),
+  createFurniture('desk', 380, 320),
+  createFurniture('desk', 120, 420),
+  createFurniture('desk', 250, 420),
+  createFurniture('chair', 120, 355),
+  createFurniture('chair', 250, 355),
+  createFurniture('chair', 380, 355),
+
+  // Growth & Trend Lab
+  createFurniture('desk', 560, 320),
+  createFurniture('desk', 700, 320),
+  createFurniture('desk', 560, 420),
+  createFurniture('chair', 560, 355),
+  createFurniture('chair', 700, 355),
+
+  // Zen Lounge
+  createFurniture('beanbag', 930, 340),
+  createFurniture('beanbag', 980, 420),
+  createFurniture('plant', 900, 480)
 ];
 
 export class FurnitureManager {
   constructor(office) {
     this.office = office;
     this.items = [];
-    this.mode = false; // decor mode
+    this.mode = false;
     this.selectedType = null;
     this.dragging = null;
   }
 
   load(saved) {
-    if (saved && Array.isArray(saved) && saved.length) {
+    // Force nicer zone layout (v2)
+    const layoutVersion = localStorage.getItem('ao_layout_v');
+    if (layoutVersion !== '2' || !saved || !Array.isArray(saved) || !saved.length) {
+      this.items = DEFAULT_FURNITURE.map(f => ({ ...f }));
+      localStorage.setItem('ao_layout_v', '2');
+    } else {
       this.items = saved.map(s => ({
         ...FURNITURE_TYPES[s.type],
         ...s
       }));
-    } else {
-      this.items = DEFAULT_FURNITURE.map(f => ({ ...f }));
     }
   }
 
@@ -196,13 +217,12 @@ export class FurnitureManager {
   getCollabPoint() {
     const board = this.items.find(i => i.collabSpot);
     if (board) return { x: board.x, y: board.y + 40 };
-    // Fallback center
     return { x: 550, y: 350 };
   }
 
   getObstacles() {
     return this.items
-      .filter(i => !i.seats) // seats are walkable-ish
+      .filter(i => !i.seats)
       .map(i => ({ x: i.x, y: i.y, r: Math.max(i.w, i.h) * 0.35 }));
   }
 
@@ -215,17 +235,14 @@ export class FurnitureManager {
   drawItem(ctx, item) {
     const { x, y, w, h, color, emoji, type } = item;
 
-    // Base shape
     ctx.fillStyle = color;
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1;
 
     if (type === 'desk' || type === 'executive') {
-      // Desk top
       roundRect(ctx, x - w / 2, y - h / 2, w, h, 6);
       ctx.fill();
       ctx.stroke();
-      // Monitor
       ctx.fillStyle = '#0f172a';
       roundRect(ctx, x - 18, y - h / 2 - 22, 36, 24, 3);
       ctx.fill();
@@ -240,7 +257,6 @@ export class FurnitureManager {
       ctx.fill();
       ctx.strokeStyle = '#94a3b8';
       ctx.stroke();
-      // Scribble lines
       ctx.strokeStyle = '#7c5cfc';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -259,7 +275,6 @@ export class FurnitureManager {
       ctx.fillStyle = '#0f172a';
       roundRect(ctx, x - 14, y - h / 2 + 8, 28, 22, 2);
       ctx.fill();
-      // Glow
       ctx.fillStyle = 'rgba(124,92,252,0.4)';
       ctx.beginPath();
       ctx.arc(x, y - 5, 6, 0, Math.PI * 2);
@@ -290,7 +305,6 @@ export class FurnitureManager {
       ctx.stroke();
     }
 
-    // Emoji label
     ctx.font = '16px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

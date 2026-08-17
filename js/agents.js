@@ -99,7 +99,7 @@ export class Agent {
     this.facing = 1;
     this.bob = Math.random() * Math.PI * 2;
     this.selected = false;
-    this.seat = null; // furniture id if sitting
+    this.seat = null;
     this.collabPartner = null;
   }
 
@@ -145,7 +145,6 @@ export class Agent {
     this.taskId = taskId;
     this.progress = 0;
     this.setState(STATES.WORKING, 999);
-    // Prefer a desk
     const desk = this.office.findNearestFurniture(this.x, this.y, 'desk');
     if (desk) {
       this.walkTo(desk.x + 10, desk.y + 5, () => {
@@ -168,13 +167,11 @@ export class Agent {
   update(dt) {
     this.bob += dt * 3;
 
-    // Speech timer
     if (this.speechTimer > 0) {
       this.speechTimer -= dt;
       if (this.speechTimer <= 0) this.speech = null;
     }
 
-    // State timer for non-busy states
     if (this.stateTimer > 0 && !this.isBusy) {
       this.stateTimer -= dt;
       if (this.stateTimer <= 0) {
@@ -182,7 +179,6 @@ export class Agent {
       }
     }
 
-    // Movement
     if (this.state === STATES.WALKING && this.path.length > 0) {
       const next = this.path[0];
       const d = dist(this.x, this.y, next.x, next.y);
@@ -209,9 +205,7 @@ export class Agent {
       }
     }
 
-    // Working progress is driven by task system
     if (this.state === STATES.WORKING || this.state === STATES.COLLABORATING) {
-      // Occasional mutter
       if (Math.random() < 0.004) {
         const phrases = IDLE_PHRASES[this.style] || IDLE_PHRASES.coder;
         this.say(pick(phrases), 2.2);
@@ -222,11 +216,9 @@ export class Agent {
   decideNextAction() {
     const r = Math.random();
     if (r < 0.35) {
-      // Wander
       const spot = this.office.randomWalkable();
       this.walkTo(spot.x, spot.y);
     } else if (r < 0.5) {
-      // Coffee
       const coffee = this.office.findNearestFurniture(this.x, this.y, 'coffee');
       if (coffee) {
         this.walkTo(coffee.x, coffee.y + 20, () => {
@@ -238,7 +230,6 @@ export class Agent {
         this.goIdle();
       }
     } else if (r < 0.6) {
-      // Arcade attraction
       const arcade = this.office.findNearestFurniture(this.x, this.y, 'arcade');
       if (arcade && dist(this.x, this.y, arcade.x, arcade.y) < 300) {
         this.walkTo(arcade.x + randomRange(-15, 15), arcade.y + 25, () => {
@@ -249,7 +240,6 @@ export class Agent {
         this.goIdle();
       }
     } else if (r < 0.7) {
-      // Argue with nearby agent (fun)
       const other = this.office.agents.find(a => a !== this && !a.isBusy && dist(a.x, a.y, this.x, this.y) < 120);
       if (other) {
         this.setState(STATES.ARGUING, 3.5);
@@ -277,66 +267,103 @@ export class Agent {
   }
 
   draw(ctx) {
-    const bobY = Math.sin(this.bob) * 2.5;
+    const bobY = Math.sin(this.bob) * 2.2;
     const px = this.x;
     const py = this.y + bobY;
+    const shortName = this.name.split(' ')[0].replace(/"/g, '');
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    // Soft shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
-    ctx.ellipse(px, this.y + 14, 14, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(px, this.y + 18, 16, 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body circle
+    // Outer glow when active
+    if (this.state === STATES.WORKING || this.state === STATES.COLLABORATING) {
+      ctx.beginPath();
+      ctx.arc(px, py, 22, 0, Math.PI * 2);
+      ctx.fillStyle = this.state === STATES.COLLABORATING
+        ? 'rgba(34, 211, 238, 0.18)'
+        : 'rgba(124, 92, 252, 0.2)';
+      ctx.fill();
+    }
+
+    // Main body circle
     ctx.beginPath();
-    ctx.arc(px, py, 16, 0, Math.PI * 2);
-    ctx.fillStyle = this.color;
+    ctx.arc(px, py, 18, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(px - 4, py - 5, 2, px, py, 18);
+    grad.addColorStop(0, this.color);
+    grad.addColorStop(1, this.color + 'cc');
+    ctx.fillStyle = grad;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+
+    // Soft rim
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Emoji face
-    ctx.font = '18px serif';
+    // Emoji / icon
+    ctx.font = '20px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.emoji, px, py + 1);
 
-    // Status indicator
-    if (this.state === STATES.WORKING) {
-      ctx.fillStyle = '#7c5cfc';
+    // Status dot
+    let statusColor = null;
+    if (this.state === STATES.WORKING) statusColor = '#a78bfa';
+    else if (this.state === STATES.COLLABORATING) statusColor = '#22d3ee';
+    else if (this.state === STATES.WALKING) statusColor = '#60a5fa';
+    else if (this.state === STATES.COFFEE) statusColor = '#fbbf24';
+    else if (this.state === STATES.ARGUING) statusColor = '#f87171';
+
+    if (statusColor) {
       ctx.beginPath();
-      ctx.arc(px + 12, py - 12, 5, 0, Math.PI * 2);
+      ctx.arc(px + 13, py - 13, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = statusColor;
       ctx.fill();
-    } else if (this.state === STATES.COLLABORATING) {
-      ctx.fillStyle = '#22d3ee';
-      ctx.beginPath();
-      ctx.arc(px + 12, py - 12, 5, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.strokeStyle = '#0f1219';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     }
 
     // Selection ring
     if (this.selected) {
-      ctx.strokeStyle = '#7c5cfc';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 3]);
       ctx.beginPath();
-      ctx.arc(px, py, 22, 0, Math.PI * 2);
+      ctx.arc(px, py, 26, 0, Math.PI * 2);
+      ctx.strokeStyle = '#7c5cfc';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([5, 4]);
       ctx.stroke();
       ctx.setLineDash([]);
     }
 
-    // Name tag on hover/select
-    if (this.selected || this.speech) {
-      ctx.font = '600 11px Space Grotesk, sans-serif';
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
-      const tw = ctx.measureText(this.name.split(' ')[0]).width + 10;
-      ctx.fillRect(px - tw / 2, py - 34, tw, 16);
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.fillText(this.name.split(' ')[0], px, py - 23);
-    }
+    // Always-visible name label
+    ctx.font = '600 11px Space Grotesk, system-ui, sans-serif';
+    const tw = ctx.measureText(shortName).width + 12;
+    const labelY = py - 32;
+
+    ctx.fillStyle = 'rgba(15, 18, 28, 0.85)';
+    roundRectAgent(ctx, px - tw / 2, labelY - 9, tw, 18, 6);
+    ctx.fill();
+    ctx.strokeStyle = this.color + '55';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#e8ecf4';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(shortName, px, labelY);
   }
+}
+
+function roundRectAgent(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 export { STATES };
