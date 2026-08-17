@@ -1,7 +1,7 @@
 // Task system with multi-agent collaboration support
 
 import { uid, pick, randomRange } from './utils.js';
-import { generateForAgent, generateCollaborative, extractHTML } from './llm.js';
+import { generateForAgent, generateCollaborative, extractHTML } from './llm2.js';
 import { Audio } from './audio.js';
 import { logEvent, toast } from './utils.js';
 import { Storage } from './storage.js';
@@ -12,8 +12,8 @@ const PRESET_PROMPTS = {
   tool: 'Build a small useful browser utility (e.g. color picker, unit converter, pomodoro, markdown preview). Self-contained HTML.',
   story: 'Write a short interactive branching story or text adventure that runs in the browser. HTML + JS.',
   dashboard: 'Create a stylish dashboard widget or mini analytics panel with fake but pretty data visualizations. Pure HTML/CSS/JS.',
-  gameart: 'Produce an art direction + lore package for a small game: color palette, mood, character concepts, and a short lore blurb. Also sketch a simple visual HTML mock if possible.',
-  marketing: 'Create a full marketing concept for a limited product drop (shoe, apparel, or gadget). Include model name, materials story, hero commercial script, and drop strategy.'
+  gameart: 'Produce an art direction + lore package for a small game: color palette, mood, character concepts, and a short lore blurb.',
+  marketing: 'Create a full marketing concept for a limited product drop. Include model name, materials story, hero commercial script, and drop strategy.'
 };
 
 export class TaskManager {
@@ -34,7 +34,7 @@ export class TaskManager {
     }
 
     const finalPrompt = preset && PRESET_PROMPTS[preset]
-      ? `${PRESET_PROMPTS[preset]}\n\nExtra instructions: ${prompt || 'Make it great.'}`
+      ? PRESET_PROMPTS[preset] + '\n\nExtra instructions: ' + (prompt || 'Make it great.')
       : (prompt || 'Create something interesting and useful.');
 
     const isCollab = collabMode === 'collab' && agents.length > 1;
@@ -45,7 +45,7 @@ export class TaskManager {
       preset: preset || 'custom',
       agents: agents.map(a => a.id),
       agentNames: agents.map(a => a.name),
-      isCollab,
+      isCollab: isCollab,
       progress: 0,
       agentProgress: Object.fromEntries(agents.map(a => [a.id, 0])),
       status: 'running',
@@ -59,16 +59,16 @@ export class TaskManager {
 
     if (isCollab) {
       const meeting = this.office.furniture.getCollabPoint();
-      agents.forEach((a, i) => {
+      agents.forEach(function(a, i) {
         const partner = agents[(i + 1) % agents.length];
         a.startCollaborating(task.id, partner, meeting);
       });
       Audio.collaborate();
-      logEvent(`${agents.map(a => a.name.split(' ')[0]).join(' + ')} started collaborating`, true);
+      logEvent(agents.map(function(a) { return a.name.split(' ')[0]; }).join(' + ') + ' started collaborating', true);
     } else {
       const lead = agents[0];
       lead.startWorking(task.id);
-      logEvent(`${lead.name} started task: ${finalPrompt.slice(0, 50)}...`);
+      logEvent(lead.name + ' started task: ' + finalPrompt.slice(0, 50) + '...');
     }
 
     this.runTask(task, agents);
@@ -78,25 +78,26 @@ export class TaskManager {
   async runTask(task, agents) {
     const duration = randomRange(8, 16);
     const start = performance.now();
-    const tick = () => {
+    const self = this;
+    const tick = function() {
       if (task.status !== 'running') return;
       const elapsed = (performance.now() - start) / 1000;
       const t = Math.min(1, elapsed / duration);
       task.progress = t;
-      agents.forEach((a, i) => {
+      agents.forEach(function(a, i) {
         const offset = i * 0.08;
         const ap = Math.max(0, Math.min(1, (t - offset) / (1 - offset * agents.length * 0.3)));
         task.agentProgress[a.id] = ap;
         a.progress = ap;
       });
-      this.renderTaskList();
-      this.office.updateSelectionIfNeeded();
+      self.renderTaskList();
+      self.office.updateSelectionIfNeeded();
       if (t < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
 
     try {
-      let result;
+      var result;
       if (task.isCollab) {
         result = await generateCollaborative(agents, task.prompt);
       } else {
@@ -105,7 +106,7 @@ export class TaskManager {
       }
 
       const remaining = duration * 1000 - (performance.now() - start);
-      if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
+      if (remaining > 0) await new Promise(function(r) { setTimeout(r, remaining); });
 
       task.status = 'done';
       task.result = result.text;
@@ -117,14 +118,14 @@ export class TaskManager {
       this.office.addMoney(reward);
       this.office.addReputation(agents.length + (task.isCollab ? 2 : 1));
 
-      agents.forEach(a => {
+      agents.forEach(function(a) {
         a.goIdle();
         a.say(pick(['Done!', 'Shipped.', 'Not bad.', 'Next?', 'That was fun.']), 2.5);
       });
 
       Audio.success();
-      logEvent(`Task complete! +${reward} credits`, true);
-      toast(`Task complete · +${reward} 💰`, 'success');
+      logEvent('Task complete! +' + reward + ' credits', true);
+      toast('Task complete · +' + reward + ' 💰', 'success');
 
       this.showResult(task);
       Storage.addCompletedTask({
@@ -132,77 +133,67 @@ export class TaskManager {
         prompt: task.prompt.slice(0, 120),
         agents: task.agentNames,
         isCollab: task.isCollab,
-        reward,
+        reward: reward,
         at: Date.now()
       });
 
-      this.active = this.active.filter(t => t.id !== task.id);
+      this.active = this.active.filter(function(t) { return t.id !== task.id; });
       this.renderTaskList();
     } catch (err) {
       console.error(err);
       task.status = 'failed';
-      agents.forEach(a => a.goIdle());
+      agents.forEach(function(a) { a.goIdle(); });
       toast('Task failed — try again', 'error');
-      this.active = this.active.filter(t => t.id !== task.id);
+      this.active = this.active.filter(function(t) { return t.id !== task.id; });
       this.renderTaskList();
     }
   }
 
   showResult(task) {
     const modal = document.getElementById('modal-result');
-    const body = document.getElementById('result-body');
+    const body = document.getElementById('result-content');
     const title = document.getElementById('result-title');
     if (!modal || !body) return;
 
     title.textContent = task.agentNames.join(' + ') + ' — Result';
-    let html = '';
+    var html = '';
     if (task.html) {
-      html += `<div class="result-tabs">
-        <button class="result-tab active" data-tab="preview">Live Preview</button>
-        <button class="result-tab" data-tab="text">Text Output</button>
-      </div>`;
-      html += `<div class="result-pane" id="pane-preview"><iframe class="result-iframe" sandbox="allow-scripts" srcdoc="${task.html.replace(/"/g, '&quot;')}"></iframe></div>`;
-      html += `<div class="result-pane hidden" id="pane-text"><pre class="result-pre">${escapeHtml(task.result)}</pre></div>`;
+      html += '<div class="result-preview"><iframe id="result-iframe" sandbox="allow-scripts" style="width:100%;height:280px;border:1px solid #2a3344;border-radius:6px;background:#fff"></iframe></div>';
+      html += '<pre class="result-content" style="margin-top:12px;max-height:160px;overflow:auto">' + escapeHtml(task.result) + '</pre>';
     } else {
-      html += `<pre class="result-pre">${escapeHtml(task.result)}</pre>`;
+      html += '<pre class="result-content">' + escapeHtml(task.result) + '</pre>';
     }
     body.innerHTML = html;
 
-    body.querySelectorAll('.result-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        body.querySelectorAll('.result-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        const name = tab.dataset.tab;
-        body.querySelectorAll('.result-pane').forEach(p => p.classList.add('hidden'));
-        document.getElementById('pane-' + name)?.classList.remove('hidden');
-      });
-    });
+    if (task.html) {
+      var iframe = document.getElementById('result-iframe');
+      if (iframe) iframe.srcdoc = task.html;
+    }
 
     document.getElementById('modal-overlay').classList.remove('hidden');
-    document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+    document.querySelectorAll('.modal').forEach(function(m) { m.classList.add('hidden'); });
     modal.classList.remove('hidden');
   }
 
   renderTaskList() {
-    const el = document.getElementById('active-tasks');
+    const el = document.getElementById('task-list');
     if (!el) return;
     if (!this.active.length) {
       el.innerHTML = '<div class="empty-state">No active tasks</div>';
       return;
     }
-    el.innerHTML = this.active.map(t => `
-      <div class="task-card">
-        <div class="task-agents">${t.agentNames.map(n => n.split(' ')[0]).join(' + ')}</div>
-        <div class="task-prompt">${t.prompt.slice(0, 60)}...</div>
-        <div class="task-progress"><div class="bar" style="width:${Math.round(t.progress*100)}%"></div></div>
-      </div>
-    `).join('');
+    el.innerHTML = this.active.map(function(t) {
+      return '<div class="task-card"><div class="task-agents">' +
+        t.agentNames.map(function(n) { return n.split(' ')[0]; }).join(' + ') +
+        '</div><div class="task-prompt">' + t.prompt.slice(0, 60) + '...</div>' +
+        '<div class="task-progress"><div class="bar" style="width:' + Math.round(t.progress * 100) + '%"></div></div></div>';
+    }).join('');
   }
 }
 
 function escapeHtml(s) {
   return String(s || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>');
 }
