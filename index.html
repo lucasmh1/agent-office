@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Office — AI Management Sim</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Bar -->
+    <header id="top-bar">
+      <div class="logo">
+        <span class="logo-icon">🏢</span>
+        <span class="logo-text">Agent Office</span>
+      </div>
+      <div class="stats">
+        <div class="stat" title="Office Credits">
+          <span class="stat-icon">💰</span>
+          <span id="money-display">1,250</span>
+        </div>
+        <div class="stat" title="Reputation">
+          <span class="stat-icon">⭐</span>
+          <span id="rep-display">12</span>
+        </div>
+        <div class="stat" title="Active Agents">
+          <span class="stat-icon">🤖</span>
+          <span id="agent-count">4</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="btn-decor" class="btn btn-ghost" title="Decor Mode">🛋️ Decor</button>
+        <button id="btn-creator" class="btn btn-ghost" title="Agent Creator">🎨 Creator</button>
+        <button id="btn-settings" class="btn btn-ghost" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <div id="main-layout">
+      <!-- Left Sidebar: Agents & Tasks -->
+      <aside id="sidebar-left">
+        <section class="panel">
+          <h2 class="panel-title">Agents <span id="agent-list-count" class="badge">4</span></h2>
+          <div id="agent-list" class="agent-list"></div>
+          <button id="btn-hire" class="btn btn-primary btn-sm full-width">+ Hire New Agent</button>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Active Tasks</h2>
+          <div id="task-list" class="task-list"></div>
+          <button id="btn-new-task" class="btn btn-accent btn-sm full-width">Assign Task</button>
+        </section>
+      </aside>
+
+      <!-- Center: Office Canvas -->
+      <main id="office-area">
+        <canvas id="office-canvas" width="1100" height="700"></canvas>
+        <div id="speech-layer"></div>
+        <div id="overlay-ui">
+          <div id="decor-toolbar" class="hidden">
+            <span class="toolbar-label">Decor Mode</span>
+            <div id="furniture-palette"></div>
+            <button id="btn-exit-decor" class="btn btn-sm">Done</button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar: Details & Log -->
+      <aside id="sidebar-right">
+        <section class="panel" id="selected-panel">
+          <h2 class="panel-title">Selection</h2>
+          <div id="selection-content" class="empty-state">
+            Click an agent or furniture
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Office Log</h2>
+          <div id="event-log" class="event-log"></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Upgrades</h2>
+          <div id="upgrades-list"></div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- Bottom Status -->
+    <footer id="status-bar">
+      <div id="status-message">Welcome to Agent Office. Your chaotic AI team is ready.</div>
+      <div id="fps-counter">60 FPS</div>
+    </footer>
+  </div>
+
+  <!-- Modals -->
+  <div id="modal-overlay" class="hidden">
+    <!-- Task Assignment Modal -->
+    <div id="modal-task" class="modal hidden">
+      <div class="modal-header">
+        <h2>Assign Task</h2>
+        <button class="modal-close" data-close="modal-task">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Task Type</label>
+          <select id="task-preset">
+            <option value="custom">Freeform / Custom Prompt</option>
+            <option value="minigame">Build a Playable Mini-Game</option>
+            <option value="landing">Design a Landing Page</option>
+            <option value="tool">Create a Utility Tool</option>
+            <option value="story">Write Interactive Story</option>
+            <option value="dashboard">Build a Dashboard Widget</option>
+            <option value="gameart">Game Art + Lore Package</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Prompt / Description</label>
+          <textarea id="task-prompt" rows="4" placeholder="Describe what you want the agent(s) to create..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Assign Agents (select 1 or more for collaboration)</label>
+          <div id="task-agent-select" class="agent-select-grid"></div>
+        </div>
+        <div class="form-group">
+          <label>Collaboration Mode</label>
+          <div class="radio-row">
+            <label><input type="radio" name="collab-mode" value="solo" checked> Solo (first selected)</label>
+            <label><input type="radio" name="collab-mode" value="collab"> Collaborative</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="modal-task">Cancel</button>
+        <button id="btn-start-task" class="btn btn-primary">Start Task</button>
+      </div>
+    </div>
+
+    <!-- Agent Creator Modal -->
+    <div id="modal-creator" class="modal hidden">
+      <div class="modal-header">
+        <h2>🎨 Character Creator</h2>
+        <button class="modal-close" data-close="modal-creator">×</button>
+      </div>
+      <div class="modal-body creator-body">
+        <div class="creator-preview">
+          <div id="creator-avatar-preview" class="avatar-large"></div>
+          <div id="creator-name-preview" class="preview-name">New Agent</div>
+        </div>
+        <div class="creator-form">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="creator-name" placeholder="e.g. Nova 'Pixel' Kane" maxlength="32">
+          </div>
+          <div class="form-group">
+            <label>Specialty / Role</label>
+            <input type="text" id="creator-role" placeholder="e.g. Frontend Wizard">
+          </div>
+          <div class="form-group">
+            <label>Catchphrase</label>
+            <input type="text" id="creator-catchphrase" placeholder="e.g. Ship it or ship out!">
+          </div>
+          <div class="form-group">
+            <label>Personality Description</label>
+            <textarea id="creator-personality" rows="2" placeholder="Quirky traits, speech style, quirks..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>System Prompt (how they work)</label>
+            <textarea id="creator-system" rows="3" placeholder="You are a senior React developer who loves clean code and dark mode..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Primary Color</label>
+              <input type="color" id="creator-color" value="#7c5cfc">
+            </div>
+            <div class="form-group">
+              <label>Emoji / Icon</label>
+              <input type="text" id="creator-emoji" value="🤖" maxlength="2" class="emoji-input">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Style</label>
+            <select id="creator-style">
+              <option value="coder">Coder</option>
+              <option value="creative">Creative</option>
+              <option value="analyst">Analyst</option>
+              <option value="chaotic">Chaotic</option>
+              <option value="executive">Executive</option>
+              <option value="support">Support</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="modal-creator">Cancel</button>
+        <button id="btn-save-agent" class="btn btn-primary">Hire Agent (150 💰)</button>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="modal hidden">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" data-close="modal-settings">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Gemini API Key (optional — enables high-quality LLM)</label>
+          <input type="password" id="api-key-input" placeholder="AIza...">
+          <small class="hint">Stored locally. Uses Gemini 2.0 Flash. Leave empty for offline mode.</small>
+        </div>
+        <div class="form-group">
+          <label>Sound Effects</label>
+          <label class="toggle">
+            <input type="checkbox" id="sfx-toggle" checked>
+            <span>Enabled</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Music / Ambient</label>
+          <label class="toggle">
+            <input type="checkbox" id="music-toggle">
+            <span>Enabled</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <button id="btn-reset-data" class="btn btn-danger btn-sm">Reset All Data</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-close="modal-settings">Save & Close</button>
+      </div>
+    </div>
+
+    <!-- Task Result Modal -->
+    <div id="modal-result" class="modal modal-wide hidden">
+      <div class="modal-header">
+        <h2 id="result-title">Task Complete</h2>
+        <button class="modal-close" data-close="modal-result">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="result-agents" class="result-agents"></div>
+        <div id="result-content" class="result-content"></div>
+        <div id="result-preview" class="result-preview hidden">
+          <h3>Live Preview</h3>
+          <iframe id="result-iframe" sandbox="allow-scripts"></iframe>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-save-result" class="btn btn-ghost">Save to Library</button>
+        <button class="btn btn-primary" data-close="modal-result">Close</button>
+      </div>
+    </div>
+
+    <!-- Hire Existing / Confirm -->
+    <div id="modal-confirm" class="modal hidden">
+      <div class="modal-header">
+        <h2 id="confirm-title">Confirm</h2>
+        <button class="modal-close" data-close="modal-confirm">×</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="modal-confirm">Cancel</button>
+        <button id="btn-confirm-yes" class="btn btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast-container"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
