@@ -12,7 +12,6 @@ function init() {
   const canvas = document.getElementById('office-canvas');
   office = new Office(canvas);
 
-  // Settings load
   const settings = Storage.getSettings();
   document.getElementById('api-key-input').value = settings.apiKey || '';
   document.getElementById('sfx-toggle').checked = settings.sfx !== false;
@@ -22,14 +21,12 @@ function init() {
   bindUI();
   office.start();
 
-  // Welcome
   setTimeout(() => {
     toast('Welcome to Agent Office. Assign a task to get started!', 'info', 4000);
   }, 800);
 }
 
 function bindUI() {
-  // Top buttons
   document.getElementById('btn-decor').addEventListener('click', () => {
     office.setDecorMode(!office.decorMode);
     Audio.click();
@@ -54,39 +51,33 @@ function bindUI() {
     Audio.click();
   });
 
+  window.addEventListener('ao-assign-task', (e) => {
+    openTaskModal(e.detail?.agentId);
+    Audio.click();
+  });
+
   document.getElementById('btn-hire').addEventListener('click', () => {
     openModal('modal-creator');
     resetCreatorForm();
     Audio.click();
   });
 
-  // Modal close buttons
   document.querySelectorAll('[data-close]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      closeModal(btn.dataset.close);
-    });
+    btn.addEventListener('click', () => closeModal(btn.dataset.close));
   });
 
-  // Overlay click to close
   document.getElementById('modal-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'modal-overlay') {
-      closeAllModals();
-    }
+    if (e.target.id === 'modal-overlay') closeAllModals();
   });
 
-  // Task start
   document.getElementById('btn-start-task').addEventListener('click', startTaskFromModal);
 
-  // Creator live preview
   ['creator-name', 'creator-emoji', 'creator-color'].forEach(id => {
     document.getElementById(id).addEventListener('input', updateCreatorPreview);
   });
 
   document.getElementById('btn-save-agent').addEventListener('click', saveCustomAgent);
 
-  // Settings save
-  document.getElementById('modal-settings').querySelector('[data-close]').addEventListener('click', saveSettings);
-  // Also on primary close
   document.querySelector('#modal-settings .btn-primary')?.addEventListener('click', saveSettings);
 
   document.getElementById('sfx-toggle').addEventListener('change', (e) => {
@@ -100,7 +91,6 @@ function bindUI() {
     }
   });
 
-  // Canvas input
   const canvas = document.getElementById('office-canvas');
   canvas.addEventListener('click', (e) => {
     const pos = office.getCanvasPos(e);
@@ -109,20 +99,55 @@ function bindUI() {
 
   window.addEventListener('keydown', (e) => office.handleKey(e));
 
-  // Preset change fills prompt
-  document.getElementById('task-preset').addEventListener('change', (e) => {
-    const hints = {
-      minigame: 'A tiny addictive browser game about collecting stars while avoiding bugs.',
-      landing: 'Landing page for "AgentForge" — an AI agent orchestration platform.',
-      tool: 'A beautiful pomodoro timer with agent-themed encouragement messages.',
-      story: 'A short interactive story about the last night shift at Agent Office.',
-      dashboard: 'A live-looking metrics panel for agent productivity and coffee consumption.',
-      gameart: 'Art direction for a cyberpunk skateboarding game set in a neon city.'
-    };
-    if (hints[e.target.value]) {
-      document.getElementById('task-prompt').value = hints[e.target.value];
-    }
-  });
+  const PRESET_FILL = {
+    minigame: {
+      title: 'Playable HTML5 Mini-Game based on Top Trends',
+      prompt: 'Create a fully playable, self-contained single-file HTML/CSS/JS mini-game. Prefer either an Asteroids-style shooter OR a dodge-falling-items game (coffee spills, fire, collectibles). Include score, lives/hearts, smooth keyboard controls, game-over state, and a restart hint. Make it look polished and fun.'
+    },
+    landing: {
+      title: 'Modern AI Product Landing Page',
+      prompt: 'Design a beautiful, modern single-page landing page for a fictional AI product called AgentForge. Include hero section, 3 feature cards, social proof, and a strong CTA. Pure HTML + CSS, dark cyber aesthetic.'
+    },
+    tool: {
+      title: 'Agent-Themed Utility Tool',
+      prompt: 'Build a small useful browser utility (pomodoro timer with agent encouragement messages, or a color picker / unit converter). Self-contained HTML, clean UI, no dependencies.'
+    },
+    story: {
+      title: 'Interactive Branching Story',
+      prompt: 'Write a short interactive branching text adventure that runs in the browser. Theme: the last night shift at Agent Office. Include at least 3 choice points and 2 endings. HTML + JS.'
+    },
+    dashboard: {
+      title: 'Agent Productivity Dashboard',
+      prompt: 'Create a stylish dashboard widget / mini analytics panel with fake but pretty data visualizations for agent productivity, coffee consumption, and tasks shipped. Pure HTML/CSS/JS.'
+    },
+    gameart: {
+      title: 'Game Art Direction + Lore Package',
+      prompt: 'Produce an art direction + lore package for a small game: color palette, mood keywords, character concepts, and a short lore blurb. Also include a simple visual HTML mock if possible.'
+    },
+    marketing: {
+      title: 'Marketing Concept for Nausicaä Skateboard Shoe',
+      prompt: 'Create a full marketing concept for a limited skateboard shoe drop inspired by Nausicaä. Include model name, materials story, hero launch commercial script, and targeted collab / drop strategy. Formatted and vivid.'
+    },
+    custom: { title: '', prompt: '' }
+  };
+
+  const cards = document.getElementById('task-preset-cards');
+  if (cards) {
+    cards.addEventListener('click', (e) => {
+      const card = e.target.closest('.preset-card');
+      if (!card) return;
+      const key = card.dataset.preset;
+      document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      document.getElementById('task-preset').value = key;
+      const fill = PRESET_FILL[key];
+      if (fill) {
+        document.getElementById('task-title').value = fill.title;
+        document.getElementById('task-prompt').value = fill.prompt;
+      }
+      Audio.click();
+    });
+  }
 }
 
 function openModal(id) {
@@ -133,11 +158,8 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id).classList.add('hidden');
-  // If no other modals open, hide overlay
   const anyOpen = [...document.querySelectorAll('.modal')].some(m => !m.classList.contains('hidden'));
-  if (!anyOpen) {
-    document.getElementById('modal-overlay').classList.add('hidden');
-  }
+  if (!anyOpen) document.getElementById('modal-overlay').classList.add('hidden');
 }
 
 function closeAllModals() {
@@ -145,46 +167,62 @@ function closeAllModals() {
   document.getElementById('modal-overlay').classList.add('hidden');
 }
 
-function openTaskModal() {
+function openTaskModal(preferredAgentId = null) {
   const select = document.getElementById('task-agent-select');
-  select.innerHTML = office.agents.map(a => `
-    <label class="agent-select-item">
-      <input type="checkbox" value="${a.id}">
-      <span>${a.emoji}</span>
-      <span>${a.name.split(' ')[0]}</span>
-    </label>
-  `).join('');
+  select.innerHTML = office.agents.map(a => {
+    const busy = a.isBusy ? ' (busy)' : '';
+    return `
+      <button type="button" class="agent-select-item ${a.isBusy ? 'is-busy' : ''}" data-id="${a.id}" aria-pressed="false">
+        <span class="asi-emoji">${a.emoji}</span>
+        <span class="asi-name">${a.name.split(' ')[0]}${busy}</span>
+        <span class="asi-check">✓</span>
+      </button>`;
+  }).join('');
 
-  select.querySelectorAll('.agent-select-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      if (e.target.tagName === 'INPUT') return;
-      const cb = item.querySelector('input');
-      cb.checked = !cb.checked;
-      item.classList.toggle('selected', cb.checked);
-    });
-    item.querySelector('input').addEventListener('change', (e) => {
-      item.classList.toggle('selected', e.target.checked);
+  select.querySelectorAll('.agent-select-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('is-busy')) {
+        toast('That agent is busy right now', 'warning');
+        return;
+      }
+      const on = btn.getAttribute('aria-pressed') !== 'true';
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.classList.toggle('selected', on);
+      Audio.click();
     });
   });
 
-  // Default select first free agent
-  const firstFree = office.agents.find(a => !a.isBusy);
-  if (firstFree) {
-    const cb = select.querySelector(`input[value="${firstFree.id}"]`);
-    if (cb) {
-      cb.checked = true;
-      cb.closest('.agent-select-item').classList.add('selected');
+  const preferred =
+    preferredAgentId ||
+    office.selectedAgent?.id ||
+    office.agents.find(a => !a.isBusy)?.id;
+
+  if (preferred) {
+    const btn = select.querySelector(`.agent-select-item[data-id="${preferred}"]`);
+    if (btn && !btn.classList.contains('is-busy')) {
+      btn.setAttribute('aria-pressed', 'true');
+      btn.classList.add('selected');
     }
   }
+
+  document.getElementById('task-preset').value = 'custom';
+  document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+  const titleEl = document.getElementById('task-title');
+  if (titleEl) titleEl.value = '';
+  document.getElementById('task-prompt').value = '';
+  const solo = document.querySelector('input[name="collab-mode"][value="solo"]');
+  if (solo) solo.checked = true;
 
   openModal('modal-task');
 }
 
 function startTaskFromModal() {
   const preset = document.getElementById('task-preset').value;
-  const prompt = document.getElementById('task-prompt').value.trim();
-  const checks = [...document.querySelectorAll('#task-agent-select input:checked')];
-  const agentIds = checks.map(c => c.value);
+  const titleEl = document.getElementById('task-title');
+  const title = titleEl ? titleEl.value.trim() : '';
+  let prompt = document.getElementById('task-prompt').value.trim();
+  const agentIds = [...document.querySelectorAll('#task-agent-select .agent-select-item.selected')]
+    .map(el => el.dataset.id);
   const collabMode = document.querySelector('input[name="collab-mode"]:checked')?.value || 'solo';
 
   if (agentIds.length === 0) {
@@ -196,7 +234,9 @@ function startTaskFromModal() {
     return;
   }
 
-  // Check busy
+  if (title && prompt) prompt = `Title: ${title}\n\n${prompt}`;
+  else if (title && !prompt) prompt = title;
+
   const busy = agentIds.some(id => {
     const a = office.agents.find(x => x.id === id);
     return a && a.isBusy;
@@ -255,21 +295,9 @@ function saveCustomAgent() {
     return;
   }
 
-  const data = {
-    name,
-    role,
-    catchphrase,
-    personality,
-    systemPrompt,
-    color,
-    emoji,
-    style,
-    isCustom: true
-  };
-
+  const data = { name, role, catchphrase, personality, systemPrompt, color, emoji, style, isCustom: true };
   const agent = office.hireAgent(data);
   if (agent) {
-    // Also keep in custom library
     const customs = Storage.getCustomAgents();
     customs.push(data);
     Storage.setCustomAgents(customs);
@@ -288,5 +316,4 @@ function saveSettings() {
   toast('Settings saved', 'success');
 }
 
-// Boot
 document.addEventListener('DOMContentLoaded', init);
